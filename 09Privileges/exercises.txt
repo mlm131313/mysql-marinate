@@ -2,15 +2,30 @@ Exercises for chapter 9
 
 1) What’s the difference between a local and a remote user?
 
+A local user connects to the server and databases from the same computer on which MySQL is running.
+A remote user connects to server/databases from a different computer.
+
 2) When would you grant only read access to a user?
 
-3) Write a GRANT statement to create a user, rowena, who has privileges to execute 
-SELECT, UPDATE, and INSERT statements on the contacts and appointment databases. 
+For users who have no authority to modify any tables, but do need to run queries and reports against the database.
+
+3) Write a GRANT statement to create a user, rowena, who has privileges to execute
+SELECT, UPDATE, and INSERT statements on the contacts and appointment databases.
 The user should be allowed to access the server from machines in the domain invyhome.com.
 
-4) Write a GRANT statement that modifies the privileges of the user rowena created in 
-Question 3. Add privileges to SELECT from the customer table in the sales database, and to 
+GRANT SELECT ON contacts.* TO 'rowena'@'%.invyhome.com' IDENTIFIED BY 'the_password';
+GRANT SELECT ON appointment.* TO 'rowena'@'%.invyhome.com';
+GRANT UPDATE ON contacts.* TO 'rowena'@'%.invyhome.com';
+GRANT UPDATE ON appointment.* TO 'rowena'@'%.invyhome.com';
+GRANT INSERT ON contacts.* TO 'rowena'@'%.invyhome.com';
+GRANT INSERT ON appointment.* TO 'rowena'@'%.invyhome.com';
+
+4) Write a GRANT statement that modifies the privileges of the user rowena created in
+Question 3. Add privileges to SELECT from the customer table in the sales database, and to
 SELECT the debtor column from the invoice table in the accounts database.
+
+GRANT SELECT ON sales.customer TO 'rowena'@'%.invyhome.com';
+GRANT SELECT (debtor) ON accounts.invoice TO 'rowena'@'%.invyhome.com';
 
 5) Three GRANT statements have been issued on your MySQL server:
 
@@ -21,20 +36,208 @@ SELECT the debtor column from the invoice table in the accounts database.
  For each of the following attempts to connect to the server, state whether the connection is allowed and, if so, which user the client is connected as. Assume all connections are attempted from localhost:
 
      a) mysql --user=hugh --host=localhost
+        xmysql --user=hugh --host=localhost: (successfully connects to localhost with only SELECT privileges because of the anonymous user allowed)
 
      b) mysql --user=fred
+        mysql --user=fred: (successfully connects to localhost with only SELECT privileges because of the anonymous user allowed)
 
      c) mysql
+        mysql: (successfully connects as anonymous local user with SELECT access to the entire database)
 
-6) You’ve been employed to evaluate the security of a MySQL installation. Assuming that you’re 
-already satisfied with the security configuration from the physical and operating system 
-perspective, list four things that you’d check about the MySQL server. For each item, explain 
+6) You’ve been employed to evaluate the security of a MySQL installation. Assuming that you’re
+already satisfied with the security configuration from the physical and operating system
+perspective, list four things that you’d check about the MySQL server. For each item, explain
 why you would check it and what you would expect the outcome to be.
 
-7) You’ve recently installed a wireless access point for visitors to your office and configured 
-it so that machines that connect through it have IP addresses in the range 192.168.1.1 to 
-192.168.1.254. You’ve decided you want users who connect to your MySQL server from those IP 
-addresses to have only the SELECT privilege on the contacts database. What steps do you take 
+Who and how many users have the GRANT OPTION privilege. We would expect this to be restricted since it can be passed on to other users without any operations control.
+Have anonymous user IDs been set up. If so, examine the privileges granted to anonyous users and inquire if these are necessary and to what extent. We would expect localhost SELECT access, and only if absolutely necessary.
+What is the extent of remote user access granted. Since this greatly increases exposure to security breaches, it should be limited and other solutions (web browser access) should have been considered.
+Look at connections from remote clients to see that they are secure. We would expect to find that all such connections are encrypted.
+
+
+7) You’ve recently installed a wireless access point for visitors to your office and configured
+it so that machines that connect through it have IP addresses in the range 192.168.1.1 to
+192.168.1.254. You’ve decided you want users who connect to your MySQL server from those IP
+addresses to have only the SELECT privilege on the contacts database. What steps do you take
 in your MySQL privilege tables to set this up?
 
+In the User table, add each user/password to host '192.168.1.%'
+In the db table, for each user and host above, add db=contacts and Select_priv = "Y"
+
+-------------------------------------------------------------
+
+Exercises for Chapter 10
+
+1) SQL dump files are often very large; why is this generally not a cause for worry?
+
+First, a full backup will be stored on separate media in a different location, so its size it not as important.
+Second, dumping the database as a series of SQL statements is less intrusive to users.
+Since they are only SQL statement text files, they can be compressed to a greatly reduced size before storage.
+Third, it is often not necessary to create regular full backups, but rather to make frequent incremental backups by saving the binary log files.
+Incremental backups are smaller and take less time to produce.
+
+2) Set up a weekly backup of all databases on your server.
+
+59 1 * * sat /usr/local/mysql/bin/mysqldump \
+user=root \
+password=PW \
+result-file=BACKUPPATH \
+DATABASENAME
+
+3) For a production server, what time would you choose for your regular backups?
+
+It is dependent on the business needs of the database.
+If there is a customary down time (weekend evening) during which the server can be stopped without loss of business, that would suffice.
+Otherwise consider less intrusive regular backup methods (SQL statements, binary logs) and perform complete backups less frequently.
+
+4) How can you recover modifications that have been made to your data since the last dump?
+
+Assuming that we stored the MySQL binary logs in a safe location, apply the logs (mysqlbinlog and mysql) to restore those most recent data changes.
+
+5) For an application where any loss of data is unacceptable, how would you choose the
+location of your binary logfile?
+
+Start the server with a --log-bin option that specifies a location on a different physical device
+(e.g. removable device) from the one on which the data directory resides.
+That way, the logs are safe even if the device containing the directory is lost.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 11
+
+1.  What issues would you consider before storing your password in an options file?
+Consider how critical/private the information is on your database.   From least to most critical, you can enter the password in the options file, restrict read/write access to the file, encrypt it, or leave the password parameter in the options file completely blank so that the system prompts you for the password.
+
+2.  On a Linux or Mac OS X system, under what circumstances would the [server] section of the ~/.my.cnf options file be read?
+MySQL server programs will read USER-SPECIFIC options in the [server] section after processing global options in "/etc/my.cnf" and "SYSCONFDIR/my.cnf", and server-specific options in "$MYSQL_HOME/my.cnf" .
+
+3.  How can you tell what options a program uses by default?
+To determine whether a program reads option files, invoke it with the --help option.  If the program reads option files, the help message indicates which files it looks for and which option groups it recognizes.   Additionally, most programs have a "print-defaults" option that will list all active options.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 12
+
+1.  Why is it important to allocate a large value to read_buffer_size?
+Query text searches that are unable to use existing indexes must examine every record in a table.  It is more efficient for the query to process a small number of large caches, rather than a great number of tiny disk reads.  Hence allocate a large value for the size of this buffer.
+
+2.  What is the advantage of caching query results?
+If your application uses certain queries very frequently, improve performance by caching the query result rather than creating it anew each time.    A larger query_cache_size allows more queries to be cached.
+
+3.  What does the OPTIMIZE TABLE command do?
+OPTIMIZE TABLE can reclaim the unused space from deleted rows and defragment the data file.  If you have deleted a large part of a table or if you have made many changes to a table with variable-length rows, OPTIMIZE TABLE can improve performance of statements that use the table.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 13
+
+1. What does the acronym LAMP stand for?
+The Linux operating system, Apache web server, MySQL database, and the PHP (or Perl or Python) scripting language
+
+2. Draw a diagram that explains a three-tier architecture.
+<img src="Chap13_ThreeTier.gif" alt="3-tier architecture" border="0" />
+
+3A. HTTP is a stateless protocol.  What does this mean?
+Each communication between browser and server is complete, final, and without references.   There is no record of previous interactions and each request is handled based entirely on the information that comes with it.
+
+3B. What are the advantages and disadvantages of statelessness?
+It allows for fast and flexible processing of large repsonse loads with minimal hardware investment.  The disadvantage is that a virtual "state" must be created through application programming (session variables, cookies) to enable users to seamlessly traverse a site.
+
+4A. How does Apache know when to start the PHP engine?
+When it encounters a file with a "php" extension.
+
+4B. What steps would you take if PHP code itself were displayed in the browser rather than the result of running the PHP code?
+Ensure that the tags ?php and ? were properly entered to enclose the code, and that the file extension .php was used.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 14
+
+1. In a PHP script, how can we access data entered by a user in an HTML form?
+The HTML FORM tag has an ACTION attribute specifying the name of the form submitted by the user, and it has a METHOD attribute indicating how to send the data entered in the form to the server. The methods GET and POST can submit data from forms to the server.
+
+2. Why is it important to untaint infomation that arrives from the client?
+Users can accidentally or deliberately supply data to your application via input forms that might find its way into your database or delete information therein. This input data could be invalid values, extraneous information, or injection attacks.  Use PHP commands and functions to verify each item before posting it.
+
+3. What is the difference between the PHP library functions mysqli_num_rows() and mysqli_affected_rows()?
+num_rows:  reports the number of rows returned by a select query.  Does not work for queries that modify the database.  affected_rows:  reports the number of rows that were MODIFIED by queries that actually change the data.
+
+4. When would you pass a variable to a function by reference rather than by value?
+A function acts on variables passed by value by manipulating a copy of those variables; when passed by reference, the fuction manipulates the actual variables themselves. You would only pass by reference when allowing the user to make permanent modifications to data tables.
+
+5. What does this program do?
+Line 1: When this file is executed as a shell script, line 1 (with #! or shebang) automatically tells Unix that this file should be run by PHP at the specified location.  The program sets two different fixed timestamp values, four months and 25 days apart.  It twice calls the function TimeDifference which retrieves the current Unix timestamp and calculates the difference from the input time in days, hours, minutes, and seconds.  The program prints out each of the two funtion results with different captions.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 15
+
+1. How can you refer to a PHP script file from within itself?
+The superglobal array $_SERVER has an entry named PHP_SELF that contains the filename of the currently executing script, relative to the document root, e.g. $_SERVER["PHP_SELF"];
+
+2. Would you use the urlencode() function with data submitted through the POST method?
+The purpose of the function is to encode a string to be used in a query part of a URL, and is much more commonly used with POST.    Urlencode() returns a string in which all non-alphanumeric characters except -_. have been replaced with a percent sign followed by two hex digits and spaces encoded as plus signs.
+
+3. Why is it a good idea to use the crypt() function on user passwords before storing them?
+Use of Crypt() applies a one-way encryption (i.e. a hashed string) to the entered password before writing it to the table.  Anyone successfully hacking into the database would not be able to reverse the encryption and simply read any passwords.
+
+4. Why is it better to avoid locks where possible?
+Depending on the database version, table locks may apply to one or more records or to the entire table, preventing any other user to access it until the lock is released.  Consider how to minimize or eliminate the time that a lock is held.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 16
+
+1. What are the strengths of Perl?
+PHP is sufficient for basic web applications, but Perl is a full-featured programming language that can be used for any task. The main advantages of Perl are its flexibility and portability, as its scripts are capable of running on many operating systems. Perl has a longer history and a larger user base for support. As such, it offers access to a wide range of function libraries provides support for database-independent interfacing through its DBI.
+
+2. What is the difference between an array and a hash?
+An array is a collection of scalar variables indexed by a number starting at zero.  Array names are preceeded by "@".  Array indexes are enclosed in "[]".
+A hash maps elements by using a text KEY.  Hash names are preceeded by "%".  Hash elements are enclosed in "{}".
+
+3. What does the following Perl script do?
+"#!/usr/bin/perl" references the location of the Perl interpreter.
+"use strict;" requires variables to be explicitly declared.
+"My $Answer;" declares a scalar variable.
+"while(@ARGV)" starts a loop that references the array that contains whatever command line arguments were entered after the program name.
+"$Answer+=shift(@ARGV)" will read the next element/argument (shift) and add its value to the current value of $Answer.
+"Print .." prints the final sum and starts a new line.
+All this presumes that the command line arguments were all numeric.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 17
+
+1. What does the Perl DBI module do?
+DBI is a set of methods and conventions that provides a standard interface to many database management systems.  The DBI calls appropriate database driver modules that translate the DBI methods for a specific database engine.
+
+2. When would you prefer to use fetchrow_array() over fetchrow_hashref()?
+Since the DBI has more work to do to present results as a hashref than as an array array, fetchrow_array() will work faster, but this is a difference one would only expect to be of benefit in an enterprise-level application.  Given the potential errors of using column index numbers, it is usually preferable to use fetchrow_hashref() and refer to columns by name.
+
+3. What are the advantages of binding variables to a query?
+Most large DBMS cache SQL statements and related information.  Invoking a normal (interpolated) query will see the SQL statement issued to and parsed by the database as many times as the loop functions.  With bind values, most DBMS will reuse the information stored in the cache over and over without reprocessing.  This approach can increase performance dramatically.
+
+4. How should you handle NULL values in answers returned by MySQL?
+It is important to screen null values in applications since error messages ("Use of uninitialized value") can result when an application expects a non-missing value.  The Perl DBI represents NULL values using undef, and they can be detected with the defined() function.  Depending on the application, change undefined values to "NULL" or 99 or zero.
+
+-------------------------------------------------------------
+
+Exercises for Chapter 18
+
+1. How is a Perl CGI script different from a command-line one?
+Perl is a programming language that can run on most operating systems and from command lines. But when you use Perl on the web, intending to talk to a web browser, your programs are called Perl CGI scripts,  in which you specify to the browser that the content is HTML and that the character set is one of your choosing.
+
+2. What does the Perl CGI module do?
+The CGI is a set of standards that defines how information is exchanged between the web server and a Perl script.  The Perl CGI module is a complete solution for processing and preparing HTTP requests and responses.  Its major features include processing form submissions, file uploads, reading and writing cookies,  query string generation and manipulation, and processing and preparing HTTP headers.  Some HTML generation utilities are included as well.
+
+3. Write a regular expression that matches any word starting with "tele";  the match should not be case-sensitive.
+if(param())
+{
+if(!(param('foo')=~/^[Tt][Ee][Ll][Ee]/))
+{
+print font({-color=>'red'}, 'invalid');
+exit;
+}
+print something;
+}
 
